@@ -66,8 +66,8 @@ const Timelapses = (() => {
     $('tl-grid').replaceChildren(...items.map(card));
     // Measured on the server: it includes previews and frames still being recorded.
     $('tl-total').hidden = !items.length;
-    api('/api/storage').then((s) => {
-      $('tl-total').textContent = `${s.timelapses.count} timelapse${s.timelapses.count === 1 ? '' : 's'} · ${bytesText(s.timelapses.bytes)} on disk`;
+    storageInfo(true).then((s) => {
+      $('tl-total').textContent = `${s.timelapses.count} timelapse${s.timelapses.count === 1 ? '' : 's'} · ${bytesText(s.timelapses.bytes)} on disk${s.disk ? ` · ${bytesText(s.disk.free)} free` : ''}`;
     }).catch(() => { $('tl-total').hidden = true; });
     $('tl-empty').hidden = items.length > 0;
     // The printers' own timelapses (Klipper, OctoPrint) are fetched on demand.

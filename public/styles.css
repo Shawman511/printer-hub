@@ -789,3 +789,18 @@ dialog.video-dlg video { width: 100%; max-height: 70vh; background: #000; border
 
 /* Size on disk, on the pages that hold the files */
 .storage-line { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* Settings → Storage: the disk as a whole */
+#disk-summary { display: flex; flex-direction: column; gap: 12px; }
+.disk-tiles { grid-template-columns: repeat(3, 1fr); }
+.disk-meter { display: flex; gap: 2px; height: 12px; border-radius: 6px; overflow: hidden; background: var(--surface-2); }
+.disk-meter span { display: block; min-width: 4px; }
+.disk-meter .disk-other:last-child { border-radius: 0 4px 4px 0; }
+.disk-hub { background: var(--accent); }
+.disk-other { background: var(--muted); }
+.disk-none { background: var(--surface-2); border: 1px solid var(--border); }
+.disk-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0; font-size: 13px; color: var(--muted); }
+.disk-legend li { display: flex; align-items: center; gap: 6px; }
+.disk-legend strong { color: var(--text); font-weight: 600; }
+.disk-key { width: 10px; height: 10px; border-radius: 3px; box-sizing: border-box; }
+@media (max-width: 560px) { .disk-tiles { grid-template-columns: 1fr; } }

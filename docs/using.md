@@ -190,8 +190,9 @@ The hub records a timelapse of every print on printers with a camera, and the
     about 180 frames.
   - Changes apply from the next frame, and to the video when the print ends.
     Finished videos stay as they are.
-- **Size on disk:** the Timelapses page shows the total and each video's size,
-  and Settings → Storage breaks down what the hub keeps.
+- **Size on disk:** the Timelapses page shows the total, the free space and each
+  video's size. **Settings → Storage** shows the disk's space in use and free, and
+  breaks down what the hub keeps.
 - **Watch, download or delete** them on the Timelapses page. Cancelled prints
   get a video too, marked as such.
 - **Turn it off** with the same setting (Record a timelapse of every print).

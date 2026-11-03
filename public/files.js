@@ -541,9 +541,11 @@ const Files = (() => {
     const noun = libKind === 'model' ? 'model' : 'print file';
     const total = (list) => bytesText(list.reduce((n, i) => n + (i.size || 0), 0));
     $('lib-total').hidden = !panel.length;
-    $('lib-total').textContent = shown.length === panel.length
+    const line = shown.length === panel.length
       ? `${panel.length} ${noun}${panel.length === 1 ? '' : 's'} · ${total(panel)} on disk`
       : `Showing ${shown.length} of ${panel.length} ${noun}s · ${total(shown)} of ${total(panel)} on disk`;
+    $('lib-total').textContent = line;
+    storageInfo().then((s) => { if (s.disk && $('lib-total').textContent === line) $('lib-total').textContent = `${line} · ${bytesText(s.disk.free)} free`; }).catch(() => {});
     renderModels(models.filter(matches));
     const items = prints.filter(matches);
     const printers = [...cards.values()].map((c) => c.state);
@@ -957,7 +959,7 @@ const Files = (() => {
 
   document.addEventListener('DOMContentLoaded', initLibrary);
 
-  function setLibrary(items) { library = items; renderLibrary(); }
+  function setLibrary(items) { library = items; storageInfo(true).catch(() => {}); renderLibrary(); }
   function setFolders(list) { folders = list; renderLibrary(); }
 
   return { openPrinterFiles, openPrint, setLibrary, setFolders, renderLibrary, uploadToPrinter, showImage };

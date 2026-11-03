@@ -343,11 +343,22 @@ function showView() {
 }
 let pendingControl = null;
 
+// The disk report, shared by the pages that show it. Pass true after files change.
+let storageCache = null;
+function storageInfo(fresh) {
+  if (fresh || !storageCache || Date.now() - storageCache.at > 30000) {
+    storageCache = { at: Date.now(), report: api('/api/storage') };
+    storageCache.report.catch(() => { storageCache = null; });
+  }
+  return storageCache.report;
+}
+
 // Settings → Storage: what the hub keeps on disk.
 async function renderStorage() {
   const body = document.getElementById('storage-body');
   try {
-    const s = await api('/api/storage');
+    const s = await storageInfo(true);
+    renderDisk(s);
     const row = (label, href, count, bytes, strong) => {
       const tr = document.createElement('tr');
       const what = document.createElement('td');
@@ -365,8 +376,30 @@ async function renderStorage() {
       row('Everything else (settings, job log)', null, null, s.other.bytes),
       row('Total', null, null, s.total, true),
     );
-    document.getElementById('storage-free').textContent = s.disk ? `${bytesText(s.disk.free)} free of ${bytesText(s.disk.size)} on this disk.` : '';
   } catch (err) { toast(err.message, true); }
+}
+
+function renderDisk(s) {
+  const $ = (id) => document.getElementById(id);
+  $('disk-summary').hidden = !s.disk;
+  if (!s.disk) return;
+  const used = Math.max(0, s.disk.size - s.disk.free);
+  const other = Math.max(0, used - s.total);
+  const pct = (n) => `${(n / s.disk.size) * 100}%`;
+  const share = Math.round((used / s.disk.size) * 100);
+  $('disk-used').textContent = bytesText(used);
+  $('disk-free').textContent = bytesText(s.disk.free);
+  $('disk-size').textContent = bytesText(s.disk.size);
+  $('disk-l-hub').textContent = bytesText(s.total);
+  $('disk-l-other').textContent = bytesText(other);
+  $('disk-l-free').textContent = bytesText(s.disk.free);
+  const meter = $('disk-meter');
+  meter.setAttribute('aria-label', `${bytesText(used)} in use, ${share}% of ${bytesText(s.disk.size)}. ${bytesText(s.disk.free)} free.`);
+  const [hub, rest] = meter.children;
+  hub.style.width = pct(s.total);
+  hub.title = `Printer Hub: ${bytesText(s.total)}`;
+  rest.style.width = pct(other);
+  rest.title = `Everything else on this disk: ${bytesText(other)}`;
 }
 window.addEventListener('hashchange', showView);
 

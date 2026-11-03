@@ -3,6 +3,13 @@
 What changed in each version. The running version is shown under the name in
 the app's top bar.
 
+## 0.22.1 — 2026-11-03
+
+### Added
+- **Settings → Storage shows the whole disk:** space in use, free space and disk
+  size, with how much of it is the hub's. The Library and Timelapses pages show
+  the free space too.
+
 ## 0.22.0 — 2026-11-03
 
 ### Added

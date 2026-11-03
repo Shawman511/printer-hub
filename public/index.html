@@ -616,13 +616,26 @@
       <a href="#users">Users</a>
       <a href="#storage" aria-current="page">Storage</a>
     </nav>
+    <div id="disk-summary" hidden>
+      <div class="tiles disk-tiles">
+        <div class="tile"><span class="k">In use</span><span class="tile-v" id="disk-used"></span></div>
+        <div class="tile"><span class="k">Free</span><span class="tile-v" id="disk-free"></span></div>
+        <div class="tile"><span class="k">Disk size</span><span class="tile-v" id="disk-size"></span></div>
+      </div>
+      <div class="disk-meter" id="disk-meter" role="img"><span class="disk-hub"></span><span class="disk-other"></span></div>
+      <ul class="disk-legend">
+        <li><span class="disk-key disk-hub"></span>Printer Hub <strong id="disk-l-hub"></strong></li>
+        <li><span class="disk-key disk-other"></span>Everything else on this disk <strong id="disk-l-other"></strong></li>
+        <li><span class="disk-key disk-none"></span>Free <strong id="disk-l-free"></strong></li>
+      </ul>
+    </div>
     <div class="table-wrap">
       <table class="table">
         <thead><tr><th>What</th><th class="num">Items</th><th class="num">Size on disk</th></tr></thead>
         <tbody id="storage-body"></tbody>
       </table>
     </div>
-    <p class="dlg-hint" id="storage-free"></p>
+    <p class="dlg-hint">Measured on the disk that holds the hub's data. In Docker, that's the disk behind its volume.</p>
   </section>
 
   <section class="view page narrow" data-view="users" hidden>
