@@ -3,6 +3,21 @@
 What changed in each version. The running version is shown under the name in
 the app's top bar.
 
+## 0.22.0 — 2026-11-03
+
+### Added
+- **Timelapse settings per printer,** in Settings → Printers: take a frame every
+  layer, every 2, 5 or 10 layers, or on a timer, and choose the video's length.
+- **Size on disk:** the Library and Timelapses pages show their totals, and a new
+  **Settings → Storage** page breaks down what the hub keeps and the free space.
+
+### Changed
+- **Longer prints get longer timelapses.** The automatic length is 10 seconds plus
+  5 per hour printed, up to a minute, instead of about 10 seconds for everything.
+  Finished videos don't change.
+- A very long recording now thins out its frames and carries on, where it used to
+  stop taking frames at 3000 and miss the end of the print.
+
 ## 0.21.0 — 2026-11-03
 
 ### Fixed

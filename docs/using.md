@@ -174,15 +174,27 @@ printer must be idle to receive files.
 The hub records a timelapse of every print on printers with a camera, and the
 **Timelapses** page lists them.
 
-- **How:** one camera frame per layer (every 20 seconds if the printer
-  doesn't report layers), plus one at the end. When the print finishes the
-  frames become an MP4 of about 10 seconds, cropped like the printer's camera
-  (see **Crop** in the control panel). A **● REC** badge on the camera shows
-  a recording in progress.
+- **How:** camera frames during the print, plus one at the end. When the print
+  finishes they become an MP4, cropped like the printer's camera (see **Crop**
+  in the control panel). A **● REC** badge on the camera shows a recording in
+  progress.
+- **Settings,** per printer in Settings → Printers:
+  - **Take a frame:** every layer (the default), every 2, 5 or 10 layers, or on
+    a timer. More frames make a smoother, longer video. Printers that don't
+    report layers use the timer, or every 20 seconds if you chose layers.
+  - **Video length:** Automatic is 10 seconds plus 5 per hour printed, up to a
+    minute, so a 4-hour print gets about 30 seconds. Or pick a set length.
+  - A video can only be as long as its frames allow, as it never plays slower
+    than 4 frames a second. A flat part with 15 layers has 16 frames, or about
+    5 seconds, so use a timer for those: every minute on a 3-hour print gives
+    about 180 frames.
+  - Changes apply from the next frame, and to the video when the print ends.
+    Finished videos stay as they are.
+- **Size on disk:** the Timelapses page shows the total and each video's size,
+  and Settings → Storage breaks down what the hub keeps.
 - **Watch, download or delete** them on the Timelapses page. Cancelled prints
   get a video too, marked as such.
-- **Turn it off** per printer in Settings → Printers (Record a timelapse of
-  every print).
+- **Turn it off** with the same setting (Record a timelapse of every print).
 - **Printers' own timelapses:** Klipper printers with moonraker-timelapse and
   OctoPrint printers list their videos under **On your printers**, played and
   downloaded through the hub.

@@ -99,6 +99,16 @@ const Setup = (() => {
     form.elements.namedItem('name').value = p?.name || '';
     form.elements.namedItem('modelMatch').value = p?.modelMatch || '';
     $('ps-timelapse').checked = p?.timelapse !== false;
+    // A value set through the API may not be in the list.
+    const pick = (sel, value, label) => {
+      if (![...sel.options].some((o) => o.value === value)) sel.add(new Option(label, value));
+      sel.value = value;
+    };
+    const every = p?.timelapseEvery;
+    pick($('ps-tl-every'), every?.seconds ? `seconds:${every.seconds}` : `layers:${every?.layers || 1}`, every?.seconds ? `Every ${every.seconds} seconds` : `Every ${every?.layers} layers`);
+    pick($('ps-tl-length'), String(p?.timelapseLength || 0), `${p?.timelapseLength} seconds`);
+    $('ps-timelapse-opts').hidden = !$('ps-timelapse').checked;
+    $('ps-timelapse').onchange = () => { $('ps-timelapse-opts').hidden = !$('ps-timelapse').checked; };
     form.querySelector('.ps-advanced').open = !!p?.modelMatch;
     $('ps-delete').hidden = !p;
 
@@ -122,6 +132,9 @@ const Setup = (() => {
       type: t.type, name: form.elements.namedItem('name').value.trim(),
       modelMatch: form.elements.namedItem('modelMatch').value.trim(), timelapse: $('ps-timelapse').checked,
     };
+    const [unit, n] = $('ps-tl-every').value.split(':');
+    out.timelapseEvery = { [unit]: Number(n) };
+    out.timelapseLength = Number($('ps-tl-length').value);
     for (const f of t.fields) {
       const input = form.elements[f.key];
       out[f.key] = f.type === 'checkbox' ? input.checked : input.value.trim();

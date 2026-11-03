@@ -10,7 +10,7 @@ const Files = (() => {
   const $ = (id) => document.getElementById(id);
   const enc = encodeURIComponent;
   const rgb = (c) => `rgb(${(c || [0, 0, 0]).slice(0, 3).join(',')})`;
-  const size = (b) => (b == null ? '—' : b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+  const size = (b) => bytesText(b);
   const printerName = (id) => cards.get(id)?.state.name || id;
   const canPrint = (p) => p && p.online && p.capabilities?.files && ['idle', 'completed'].includes(p.status);
 
@@ -537,6 +537,13 @@ const Files = (() => {
     const filtering = q || libFolder || libTags.size;
     $('model-empty').textContent = filtering ? 'No models match. Try another folder, tag or search.' : 'No models yet. Drop .stl, .obj, .step or .3mf files above.';
     $('lib-empty').textContent = filtering ? 'No print files match. Try another folder, tag or search.' : "No print files yet. Drop some above, slice a model, or upload from a printer's Start print dialog.";
+    const shown = panel.filter(matches);
+    const noun = libKind === 'model' ? 'model' : 'print file';
+    const total = (list) => bytesText(list.reduce((n, i) => n + (i.size || 0), 0));
+    $('lib-total').hidden = !panel.length;
+    $('lib-total').textContent = shown.length === panel.length
+      ? `${panel.length} ${noun}${panel.length === 1 ? '' : 's'} · ${total(panel)} on disk`
+      : `Showing ${shown.length} of ${panel.length} ${noun}s · ${total(shown)} of ${total(panel)} on disk`;
     renderModels(models.filter(matches));
     const items = prints.filter(matches);
     const printers = [...cards.values()].map((c) => c.state);

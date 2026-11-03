@@ -37,6 +37,14 @@ function toast(msg, bad = false) {
   setTimeout(() => el.remove(), 4000);
 }
 
+// "340 MB", for file sizes and totals.
+function bytesText(b) {
+  if (b == null) return '—';
+  if (b >= 1073741824) return `${(b / 1073741824).toFixed(1)} GB`;
+  if (b >= 1048576) return `${(b / 1048576).toFixed(b < 10485760 ? 1 : 0)} MB`;
+  return `${Math.max(1, Math.round(b / 1024))} KB`;
+}
+
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     method: opts.method || (opts.body ? 'POST' : 'GET'),
@@ -310,7 +318,7 @@ function showView() {
   // The old Totals page is now a tab of the job log.
   if (location.hash === '#totals') history.replaceState(null, '', '#jobs/items');
   const [view, arg] = (location.hash.slice(1) || 'printers').split('/');
-  const known = ['printers', 'control', 'library', 'jobs', 'timelapses', 'account', 'settings', 'users'].includes(view) ? view : 'printers';
+  const known = ['printers', 'control', 'library', 'jobs', 'timelapses', 'account', 'settings', 'users', 'storage'].includes(view) ? view : 'printers';
   if (known === 'control') {
     // Printers arrive over SSE; open once the card exists.
     const id = decodeURIComponent(arg || '');
@@ -318,13 +326,14 @@ function showView() {
   } else {
     Control.close();
   }
-  const navFor = { control: 'printers', users: 'settings' }[known] || known;
+  const navFor = { control: 'printers', users: 'settings', storage: 'settings' }[known] || known;
   document.querySelectorAll('.tabs a').forEach((a) => a.setAttribute('aria-current', a.dataset.view === navFor ? 'page' : 'false'));
   document.querySelectorAll('.view').forEach((el) => { el.hidden = !el.dataset.view.split(' ').includes(known); });
   if (known === 'jobs') Jobs.show(arg);
   if (known === 'library') Files.renderLibrary();
   if (known === 'account') Account.renderAccount();
   if (known === 'users') Account.renderUsers();
+  if (known === 'storage') renderStorage();
   if (known === 'timelapses') Timelapses.render();
   if (known === 'settings') {
     Setup.render();
@@ -333,6 +342,32 @@ function showView() {
   document.getElementById('me').setAttribute('aria-current', known === 'account' ? 'page' : 'false');
 }
 let pendingControl = null;
+
+// Settings → Storage: what the hub keeps on disk.
+async function renderStorage() {
+  const body = document.getElementById('storage-body');
+  try {
+    const s = await api('/api/storage');
+    const row = (label, href, count, bytes, strong) => {
+      const tr = document.createElement('tr');
+      const what = document.createElement('td');
+      if (href) what.append(Object.assign(document.createElement('a'), { href, textContent: label }));
+      else what.textContent = label;
+      const n = Object.assign(document.createElement('td'), { className: 'num', textContent: count == null ? '' : count.toLocaleString() });
+      const size = Object.assign(document.createElement('td'), { className: `num nowrap${strong ? ' strong' : ''}`, textContent: bytesText(bytes) });
+      tr.append(what, n, size);
+      return tr;
+    };
+    body.replaceChildren(
+      row('Print files', '#library', s.printFiles.count, s.printFiles.bytes),
+      row('Models', '#library', s.models.count, s.models.bytes),
+      row('Timelapses', '#timelapses', s.timelapses.count, s.timelapses.bytes),
+      row('Everything else (settings, job log)', null, null, s.other.bytes),
+      row('Total', null, null, s.total, true),
+    );
+    document.getElementById('storage-free').textContent = s.disk ? `${bytesText(s.disk.free)} free of ${bytesText(s.disk.size)} on this disk.` : '';
+  } catch (err) { toast(err.message, true); }
+}
 window.addEventListener('hashchange', showView);
 
 // ---- Live updates ---------------------------------------------------------------

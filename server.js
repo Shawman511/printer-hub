@@ -10,6 +10,7 @@ const { OctoPrintDriver } = require('./drivers/octoprint');
 const { PrusaLinkDriver } = require('./drivers/prusalink');
 const { PrinterStore } = require('./lib/printers');
 const { Timelapses } = require('./lib/timelapse');
+const { storageReport } = require('./lib/storage');
 const { JobLog, planFilamentUse } = require('./lib/jobs');
 const { Library, folderPath, projectFilaments } = require('./lib/library');
 const { checkFile } = require('./lib/compat');
@@ -154,7 +155,7 @@ for (const cfg of printerStore.all()) attach(cfg);
 // True when two printer configs differ only in hub-side settings (camera crop,
 // timelapses) that don't need the printer reconnected.
 const onlyCropChanged = (a, b) => {
-  const strip = ({ cameraCrop, timelapse, ...rest }) => JSON.stringify(rest);
+  const strip = ({ cameraCrop, timelapse, timelapseEvery, timelapseLength, ...rest }) => JSON.stringify(rest);
   return !!a && !!b && strip(a) === strip(b);
 };
 
@@ -596,6 +597,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 400, { error: err.message });
     }
   }
+
+  if (url.pathname === '/api/storage' && req.method === 'GET') return json(res, 200, storageReport(dataDir, library, timelapses));
 
   // /api/timelapses[/:id[/video|/poster]], /api/timelapses/printers — recorded here, and the printers' own
   if (parts[1] === 'timelapses') {

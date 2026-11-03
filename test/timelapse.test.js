@@ -7,7 +7,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { Timelapses } = require('../lib/timelapse');
+const { Timelapses, videoTiming } = require('../lib/timelapse');
+const { PrinterStore } = require('../lib/printers');
+const { storageReport } = require('../lib/storage');
+const { Library } = require('../lib/library');
 const { MockDriver } = require('../drivers/mock');
 
 const HAS_FFMPEG = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -146,4 +149,110 @@ test('a blip mid-print does not end the recording', async () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+const HOUR = 3600000;
+
+test('longer prints get longer videos, unless a length is chosen', () => {
+  assert.equal(videoTiming(900, 4 * HOUR).fps, 30, '30 seconds for 4 hours');
+  assert.equal(videoTiming(900, 4 * HOUR).seconds, 31, 'plus the held last frame');
+  assert.equal(videoTiming(100, 0).seconds, 11);
+  assert.equal(videoTiming(6000, 40 * HOUR).seconds, 61, 'an automatic video stops at a minute');
+  assert.equal(videoTiming(600, 4 * HOUR, 120).seconds, 121);
+  assert.equal(videoTiming(16, 3 * HOUR).fps, 4, 'too few frames never becomes a slideshow');
+  assert.equal(videoTiming(16, 3 * HOUR).seconds, 5);
+});
+
+async function record(cfg, layers, opts = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tl-'));
+  const tl = new Timelapses(dir, { graceMs: 0, ...opts });
+  const driver = new MockDriver({ id: 'm', name: 'Mock' }, {});
+  Object.assign(driver.cfg, cfg);
+  const state = (status, layer) => ({ id: 'm', name: 'Mock', camera: 'mjpeg', status, job: { file: 'part.gcode', layer, totalLayers: layers } });
+  for (let layer = 1; layer <= layers; layer++) {
+    tl.observe(driver, state('printing', layer));
+    await sleep(5);
+  }
+  return { dir, tl, driver, state, done: () => fs.rmSync(dir, { recursive: true, force: true }) };
+}
+
+test('takes a frame every N layers', async () => {
+  const { tl, done } = await record({ timelapseEvery: { layers: 5 } }, 21);
+  try {
+    assert.equal(tl.list()[0].frames, 5, 'layers 1, 6, 11, 16 and 21');
+  } finally { done(); }
+});
+
+test('a timer setting ignores layers', async () => {
+  const { tl, done } = await record({ timelapseEvery: { seconds: 3600 } }, 20);
+  try {
+    assert.equal(tl.list()[0].frames, 1);
+  } finally { done(); }
+});
+
+test('a size shows while recording', async () => {
+  const { tl, done } = await record({}, 3);
+  try {
+    assert.ok(tl.list()[0].size > 0);
+  } finally { done(); }
+});
+
+test('a very long recording thins out and still reaches the end', async () => {
+  const { tl, done } = await record({}, 25, { maxFrames: 10 });
+  try {
+    const item = tl.list()[0];
+    assert.ok(item.frames < 10, `${item.frames} frames`);
+    assert.ok(item.stride >= 2, 'capturing slowed down');
+    const files = fs.readdirSync(tl.framesDir(item)).sort();
+    assert.equal(files.length, item.frames);
+    assert.equal(files[files.length - 1], `${String(item.frames).padStart(5, '0')}.${item.ext}`, 'numbered without gaps, for FFmpeg');
+    assert.equal(item.size, files.reduce((n, f) => n + fs.statSync(path.join(tl.framesDir(item), f)).size, 0));
+  } finally { done(); }
+});
+
+test('the video length is the one chosen', { skip: !HAS_FFMPEG && 'needs FFmpeg' }, async () => {
+  const { tl, driver, state, done } = await record({ timelapseLength: 5 }, 40);
+  try {
+    tl.observe(driver, state('completed', 40));
+    await settle(tl, () => tl.list()[0]?.status === 'ready' || tl.list()[0]?.status === 'failed');
+    const item = tl.list()[0];
+    assert.equal(item.status, 'ready', item.error);
+    const r = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', tl.videoPath(item)]);
+    assert.ok(Math.abs(Number(String(r.stdout).trim()) - 6) < 0.5, `${r.stdout} seconds`);
+  } finally { done(); }
+});
+
+test('timelapse settings are checked and kept when a printer is edited', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tl-'));
+  try {
+    const store = new PrinterStore(dir, { mock: MockDriver }, []);
+    const p = store.add({ type: 'mock', name: 'Sim', timelapseEvery: { layers: 5 }, timelapseLength: 30 });
+    assert.deepEqual(p.timelapseEvery, { layers: 5 });
+    assert.equal(p.timelapseLength, 30);
+    assert.deepEqual(store.update(p.id, { name: 'Sim 2' }).timelapseEvery, { layers: 5 }, 'other edits leave them alone');
+    assert.equal(store.update(p.id, { timelapseLength: 0 }).timelapseLength, undefined, 'back to automatic');
+    assert.deepEqual(store.update(p.id, { timelapseEvery: { seconds: 60 } }).timelapseEvery, { seconds: 60 });
+    assert.throws(() => store.update(p.id, { timelapseEvery: { seconds: 1 } }), /5–3600/);
+    assert.throws(() => store.update(p.id, { timelapseEvery: { layers: 0 } }), /1–1000/);
+    assert.throws(() => store.update(p.id, { timelapseLength: 9999 }), /5–600/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('storage adds up what is on disk', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tl-'));
+  try {
+    const { Readable } = require('node:stream');
+    const lib = new Library(dir);
+    const tl = new Timelapses(dir);
+    await lib.addFromStream('a.gcode', Readable.from([Buffer.alloc(5000, 65)]));
+    await lib.addFromStream('m.stl', Readable.from([Buffer.alloc(9000, 66)]));
+    fs.writeFileSync(path.join(tl.dir, 'x.mp4'), Buffer.alloc(7000));
+    const s = storageReport(dir, lib, tl);
+    assert.equal(s.printFiles.count, 1);
+    assert.ok(s.printFiles.bytes >= 5000);
+    assert.equal(s.models.bytes, 9000);
+    assert.equal(s.timelapses.bytes, 7000);
+    assert.ok(s.total >= 21000);
+    assert.equal(s.total, s.printFiles.bytes + s.models.bytes + s.timelapses.bytes + s.other.bytes);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

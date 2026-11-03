@@ -128,6 +128,10 @@ can be changed later under **Settings → Printers**:
   ```bash
   curl -fsS -b "$JAR" -X PATCH -H 'Content-Type: application/json' -d '{"timelapse":false}' "$HUB/api/printer-setup/PRINTER_ID"
   ```
+  How often it takes a frame and how long the video is are also theirs to choose.
+  The default is every layer and an automatic length. To change them, `PATCH` with
+  `{"timelapseEvery":{"layers":5}}` or `{"timelapseEvery":{"seconds":60}}`, and
+  `{"timelapseLength":30}` in seconds (`0` for automatic).
 - **Camera crop:** drawn on the picture in the browser, so leave it to them.
 - **Slicer profile:** picked under **Slice with**. To set it, list the choices
   with `GET /api/printer-setup/machines`, then `PATCH` with

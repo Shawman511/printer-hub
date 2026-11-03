@@ -9,7 +9,7 @@ const Timelapses = (() => {
 
   const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
   const when = (t) => (t ? new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '');
-  const mb = (n) => (n ? `${(n / 1048576).toFixed(n < 10485760 ? 1 : 0)} MB` : '');
+  const mb = (n) => (n ? bytesText(n) : '');
   const STATUS = { recording: 'Recording', encoding: 'Making video', failed: 'Failed' };
 
   function setAll(list) {
@@ -64,6 +64,11 @@ const Timelapses = (() => {
   async function render() {
     if (!loaded) { try { setAll(await api('/api/timelapses')); } catch (err) { toast(err.message, true); } return; }
     $('tl-grid').replaceChildren(...items.map(card));
+    // Measured on the server: it includes previews and frames still being recorded.
+    $('tl-total').hidden = !items.length;
+    api('/api/storage').then((s) => {
+      $('tl-total').textContent = `${s.timelapses.count} timelapse${s.timelapses.count === 1 ? '' : 's'} · ${bytesText(s.timelapses.bytes)} on disk`;
+    }).catch(() => { $('tl-total').hidden = true; });
     $('tl-empty').hidden = items.length > 0;
     // The printers' own timelapses (Klipper, OctoPrint) are fetched on demand.
     try {
