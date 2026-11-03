@@ -84,7 +84,7 @@ const Control = (() => {
     $('ctl-err').textContent = state.error || '';
 
     const act = (name) => root.querySelector(`[data-act="${name}"]`);
-    act('pause').hidden = !(state.online && (s === 'printing' || s === 'heating'));
+    act('pause').hidden = !(state.online && (s === 'printing' || (s === 'heating' && caps.pauseWhileHeating !== false)));
     act('resume').hidden = !(state.online && s === 'paused');
     act('clear').hidden = !(state.online && s === 'completed');
     act('cancel').hidden = !(state.online && ['preparing', 'printing', 'heating', 'pausing', 'paused'].includes(s));

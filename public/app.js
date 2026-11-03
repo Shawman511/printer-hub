@@ -229,7 +229,7 @@ function render(state) {
 
   const caps = state.capabilities || {};
   const on = state.online;
-  q('.act-pause').hidden = !(on && caps.pause && (s === 'printing' || s === 'heating'));
+  q('.act-pause').hidden = !(on && caps.pause && (s === 'printing' || (s === 'heating' && caps.pauseWhileHeating !== false)));
   q('.act-resume').hidden = !(on && caps.resume && s === 'paused');
   q('.act-cancel').hidden = !(on && caps.cancel && ['preparing', 'printing', 'heating', 'pausing', 'paused'].includes(s));
   q('.act-clear').hidden = !(on && s === 'completed');

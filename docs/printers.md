@@ -11,16 +11,18 @@
 | **Prusa (PrusaLink)** | Prusa MK4/S, MK3.9, XL, MINI+, Core One | ✓ | pause / resume / cancel | ✓ | stream URL only |
 | **FlashForge Adventurer 5M / 5M Pro** | Stock firmware, LAN-only mode | ✓ | ✓ | ✓ | ✓ |
 | **Anycubic Kobra X / Kobra 3 / S1** | Stock firmware, LAN Mode (incl. ACE multi-color) | ✓ | ✓ | ✓ | ✓ |
+| **Elegoo Centauri Carbon 2** | Stock firmware, LAN Only mode (incl. CANVAS multi-color) | ✓ | ✓ | ✓ | ✓ |
 | **Simulator** | A pretend printer for trying the hub | ✓ | ✓ | ✓ | ✓ |
 
 The FlashForge and Anycubic drivers are used daily on real printers. The
 Klipper, OctoPrint and PrusaLink drivers follow those projects' documented
-APIs and are tested against simulated servers in [`test/`](../test/), but haven't
-been run against every model. If something doesn't work with yours, please
-[open an issue](https://github.com/Shawman511/printer-hub/issues).
+APIs, and the Elegoo driver follows the community's reverse-engineered
+protocol. They are tested against simulated servers in [`test/`](../test/), but
+haven't been run against every model. If something doesn't work with yours,
+please [open an issue](https://github.com/Shawman511/printer-hub/issues).
 
-Not supported yet: Bambu Lab, Elegoo Centauri (SDCP) and Creality printers on
-stock (non-Klipper) firmware. Adding a printer type is one file in
+Not supported yet: Bambu Lab, the original Elegoo Centauri Carbon (SDCP) and
+Creality printers on stock (non-Klipper) firmware. Adding a printer type is one file in
 [`drivers/`](../drivers/); see [Development](development.md#how-it-works).
 
 ## Adding a printer
@@ -84,6 +86,37 @@ printer. In cloud mode the hub reports "Printer is in cloud mode". The Kobra X
 only has WiFi; once LAN Mode is on you can block its internet access in your
 router. The camera is the printer's FLV stream, with still snapshots as a
 fallback.
+
+### Elegoo Centauri Carbon 2
+
+On the printer, turn on **LAN Only Mode** (Settings → Network); without it the
+printer accepts the connection but never answers. Enter the **access code**
+shown on the same screen. If the printer has no access code set, leave it
+empty: the hub then uses `123456`, as Elegoo's own app and slicer do. The
+printer allows two LAN connections at a time, shared with the Elegoo app and
+slicer; if both are taken the hub says so and reconnects once one is free. The
+camera is `http://<ip>:8080/?action=stream`.
+
+**CANVAS multi-color:** when you start a print, the hub suggests a loaded tray
+for each color (same material, closest color), you can change it, and the hub
+tells the printer which trays to use. The job log charges the rolls in those
+trays. The printer doesn't report how much of each color a file uses: a
+one-color print charges the file's total to its tray, and a multi-color file
+the hub sliced charges each color's grams from the hub's own copy (matched by
+filament number, which is the printer's tool number `t`). Other multi-color
+files record their total without charging a roll, unless every color uses the
+same tray. If the printer doesn't list a file's colors at all, the hub won't
+start it while CANVAS is attached, since it can't pick a tray; start it on the
+printer's screen instead. If the printer switches trays by itself mid-print
+(auto-refill), the charge stays on the tray the print started from.
+
+**Pause, resume and cancel** count as done when the printer answers or its
+status changes to match. If neither happens within 15 seconds, the hub says the
+command wasn't confirmed instead of reporting success. The Pause button is
+hidden while the printer heats up for a print, because the printer holds such a
+pause and carries it out minutes later. Cancel works at any time.
+
+Uploads use the access code too; with a wrong one the printer refuses them.
 
 ### Network
 

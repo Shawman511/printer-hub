@@ -3,6 +3,15 @@
 What changed in each version. The running version is shown under the name in
 the app's top bar.
 
+## Unreleased
+
+### Added
+- **Elegoo Centauri Carbon 2,** in LAN Only mode: live status, temperatures
+  (including the chamber), pause, resume and cancel, manual control, light,
+  speed modes, the printer's files, uploads, starting prints, CANVAS tray
+  colors and the camera. Add it under Settings → Printers with its access
+  code. Not yet tried on every firmware; please report how it goes.
+
 ## 0.21.0 — 2026-11-03
 
 ### Fixed

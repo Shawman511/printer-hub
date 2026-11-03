@@ -67,7 +67,7 @@ test('add, test, mask secrets, edit and remove a printer', async () => {
     assert.deepEqual(r.data, []);
 
     r = await hub.call('/api/printer-setup/types');
-    assert.deepEqual(r.data.map((t) => t.type), ['moonraker', 'octoprint', 'prusalink', 'flashforge', 'anycubic', 'mock']);
+    assert.deepEqual(r.data.map((t) => t.type), ['moonraker', 'octoprint', 'prusalink', 'flashforge', 'anycubic', 'elegoo', 'mock']);
     assert.ok(r.data.find((t) => t.type === 'moonraker').fields.some((f) => f.key === 'apiKey' && f.type === 'password'));
 
     // Test before saving: a good printer, a wrong key, and a dead address.

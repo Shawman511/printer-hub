@@ -4,6 +4,7 @@ const http = require('node:http');
 const https = require('node:https');
 const { FlashForgeDriver } = require('./drivers/flashforge');
 const { AnycubicDriver } = require('./drivers/anycubic');
+const { ElegooDriver } = require('./drivers/elegoo');
 const { MockDriver } = require('./drivers/mock');
 const { MoonrakerDriver } = require('./drivers/moonraker');
 const { OctoPrintDriver } = require('./drivers/octoprint');
@@ -24,6 +25,7 @@ const DRIVERS = {
   prusalink: PrusaLinkDriver,
   flashforge: FlashForgeDriver,
   anycubic: AnycubicDriver,
+  elegoo: ElegooDriver,
   mock: MockDriver,
 };
 

@@ -103,6 +103,7 @@ curl -fsS -b "$JAR" "$HUB/api/printer-setup/types" | jq '.[] | {type, help, fiel
 | `prusalink` | Prusa MK4, XL, MINI+, Core One | Address, username `maker`, password from the printer's screen |
 | `flashforge` | Adventurer 5M / 5M Pro | Address, serial number, check code (LAN-only mode) |
 | `anycubic` | Kobra X / Kobra 3 / S1 | Address (LAN Mode on) |
+| `elegoo` | Centauri Carbon 2 | Address, access code (LAN Only mode on) |
 | `mock` | A simulated printer, for trying the hub | Nothing |
 
 [docs/printers.md](docs/printers.md) says where the printer shows each value.

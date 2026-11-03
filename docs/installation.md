@@ -256,6 +256,6 @@ take over):
 ```
 
 `type` is one of `moonraker`, `octoprint`, `prusalink`, `flashforge`,
-`anycubic` or `mock`, followed by that type's settings. `"${NAME}"` is replaced
+`anycubic`, `elegoo` or `mock`, followed by that type's settings. `"${NAME}"` is replaced
 by the environment variable `NAME`. `pollIntervalMs` sets how often printers
 are asked for their status.
