@@ -125,7 +125,8 @@ the name from `docker volume ls`.
 
 Dockhand spots an update by comparing the image a container runs with the one in
 its registry, so it needs the published images. A stack that builds from source
-runs a local image, and Dockhand can't check that one.
+runs a local image, and Dockhand can't check that one, so the root `compose.yaml`
+marks its containers with the `dockhand.update: "false"` label to skip the check.
 
 1. Create a Git stack from this repository with the compose file path
    `deploy/docker-compose.yml`, and leave **Build images on deploy** off.
