@@ -336,7 +336,9 @@ function json(res, status, body, headers = {}) {
 const COOKIE = 'hub_session';
 const cookies = (req) => Object.fromEntries((req.headers.cookie || '').split(';').map((c) => {
   const i = c.indexOf('=');
-  return i < 0 ? [c.trim(), ''] : [c.slice(0, i).trim(), decodeURIComponent(c.slice(i + 1).trim())];
+  if (i < 0) return [c.trim(), ''];
+  const raw = c.slice(i + 1).trim();
+  try { return [c.slice(0, i).trim(), decodeURIComponent(raw)]; } catch { return [c.slice(0, i).trim(), raw]; }
 }));
 // Behind an HTTPS reverse proxy the cookie gets the Secure flag.
 const isHttps = (req) => req.socket.encrypted || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
@@ -429,7 +431,7 @@ function sendFile(req, res, file, type, extra = {}) {
     'Content-Type': type, 'Content-Length': end - start + 1, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600',
     ...(status === 206 ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}), ...SECURITY_HEADERS, ...extra,
   });
-  fs.createReadStream(file, { start, end }).pipe(res);
+  fs.createReadStream(file, { start, end }).on('error', () => res.destroy()).pipe(res);
 }
 
 // A preview image from the library (they never change, so browsers may cache them).
@@ -521,8 +523,9 @@ const ACTIONS = {
   },
 };
 
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://localhost');
+async function handle(req, res) {
+  let url;
+  try { url = new URL(req.url, 'http://localhost'); } catch { return json(res, 400, { error: 'Bad request' }); }
   const parts = url.pathname.split('/').filter(Boolean);
 
   // three.js for the model preview: /vendor/three/three.module.js and /vendor/three/addons/...
@@ -559,7 +562,7 @@ const server = http.createServer(async (req, res) => {
     return json(res, err.status || 400, { error: err.message });
   }
   if (!ctx) return json(res, 401, { error: 'Sign in required' }, { 'Set-Cookie': clearCookie(req) });
-  if (!allowed(ctx.user.role, req.method, url.pathname)) return json(res, 403, { error: `Your account (${ctx.user.role}) can only watch, not change things` });
+  if (!allowed(ctx.user.role, req.method, `/${parts.join('/')}`)) return json(res, 403, { error: `Your account (${ctx.user.role}) can only watch, not change things` });
 
   if (url.pathname === '/api/printers' && req.method === 'GET') return json(res, 200, snapshot());
 
@@ -598,7 +601,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  if (url.pathname === '/api/storage' && req.method === 'GET') return json(res, 200, storageReport(dataDir, library, timelapses));
+  if (url.pathname === '/api/storage' && req.method === 'GET') return json(res, 200, await storageReport(dataDir, library, timelapses));
 
   // /api/timelapses[/:id[/video|/poster]], /api/timelapses/printers — recorded here, and the printers' own
   if (parts[1] === 'timelapses') {
@@ -727,12 +730,17 @@ const server = http.createServer(async (req, res) => {
         return p ? sendThumb(res, p) : json(res, 404, { error: 'No preview' });
       }
       if (parts[3] === 'download' && req.method === 'GET') {
-        res.writeHead(200, {
-          'Content-Type': 'application/octet-stream',
-          'Content-Length': item.size,
-          'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(item.name)}`,
+        const file = fs.createReadStream(library.filePath(item));
+        file.on('error', () => (res.headersSent ? res.destroy() : json(res, 404, { error: `${item.name} is missing from the library's storage` })));
+        file.on('open', () => {
+          res.writeHead(200, {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': item.size,
+            'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(item.name)}`,
+          });
+          file.pipe(res);
         });
-        return fs.createReadStream(library.filePath(item)).pipe(res);
+        return;
       }
       if (parts[3] === 'slice' && req.method === 'POST') {
         const body = await readBody(req);
@@ -807,6 +815,15 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     json(res, 400, { error: err.message });
   }
+}
+
+// A request that throws gets an error reply; it must never stop the hub.
+const server = http.createServer((req, res) => {
+  handle(req, res).catch((err) => {
+    console.error(`${req.method} ${req.url} failed: ${err.stack || err}`);
+    if (!res.headersSent) json(res, 500, { error: 'Something went wrong in the hub' });
+    else res.destroy();
+  });
 });
 
 // HUB_RESET_PASSWORD=<username> sets a new random password for that user at

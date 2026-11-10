@@ -247,7 +247,7 @@ test('storage adds up what is on disk', async () => {
     await lib.addFromStream('a.gcode', Readable.from([Buffer.alloc(5000, 65)]));
     await lib.addFromStream('m.stl', Readable.from([Buffer.alloc(9000, 66)]));
     fs.writeFileSync(path.join(tl.dir, 'x.mp4'), Buffer.alloc(7000));
-    const s = storageReport(dir, lib, tl);
+    const s = await storageReport(dir, lib, tl);
     assert.equal(s.printFiles.count, 1);
     assert.ok(s.printFiles.bytes >= 5000);
     assert.equal(s.models.bytes, 9000);
