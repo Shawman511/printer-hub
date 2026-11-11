@@ -7,6 +7,8 @@ services:
     pull_policy: build # rebuild from the checked-out commit on every deploy
     container_name: printer-hub
     restart: unless-stopped
+    labels:
+      dockhand.update: "false" # built here, so there is no registry to check
     ports:
       - "${HUB_PORT:-3000}:3000"
     environment:
@@ -32,6 +34,8 @@ services:
     pull_policy: build
     container_name: printer-hub-slicer
     restart: unless-stopped
+    labels:
+      dockhand.update: "false" # built here, so there is no registry to check
     environment:
       TZ: ${TZ:-UTC}
     volumes:
