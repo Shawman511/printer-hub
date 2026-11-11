@@ -3,6 +3,25 @@
 What changed in each version. The running version is shown under the name in
 the app's top bar.
 
+## 0.22.2 — 2026-11-09
+
+### Fixed
+- **Two requests that stopped the hub.** A malformed cookie or a path of `//`
+  made the hub exit, without signing in. A request that goes wrong now gets an
+  error reply instead.
+- **Printer settings stay admin-only.** A path written as `/api//printer-setup`
+  let operators change printers and viewers read their settings.
+- **Kobra X: pause, resume and cancel are confirmed.** The hub waits for the
+  printer's status to show the change and says so if it doesn't, instead of
+  reporting success straight away.
+- **Kobra X: requests of one kind no longer take each other's answers,** and a
+  printer edited or tested while connecting doesn't leave a connection behind.
+- **Downloading a file missing from disk** gives an error instead of stopping the hub.
+- **Settings → Storage no longer holds everything up** while it adds up the disk.
+- **Sign-in lockouts are per address.** Wrong passwords could lock a known
+  account out for everyone.
+- **Uploads that break off** no longer leave a file open.
+
 ## 0.22.1 — 2026-11-03
 
 ### Added

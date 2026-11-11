@@ -129,6 +129,8 @@ class AnycubicDriver extends PrinterDriver {
     // Replies carry their own msgid (after an empty ack echoing ours), so we
     // match pending requests by "type:action" instead.
     this.pending = new Map();
+    this.lines = new Map(); // "type:action" -> the last request of that kind
+    this.confirmMs = opts?.confirmMs ?? 20000;
   }
 
   async start() {
@@ -147,10 +149,12 @@ class AnycubicDriver extends PrinterDriver {
     try {
       this.hs = await handshake(this.cfg.host);
     } catch (err) {
+      if (this.stopped) return;
       this.setOffline(err);
       this.retryTimer = setTimeout(() => this.connect(), 15000);
       return;
     }
+    if (this.stopped) return; // stopped while the handshake was under way
     const { brokerHost, brokerPort, username, password, cert, key, modelId, deviceId } = this.hs;
     this.client = mqtt.connect({
       protocol: 'mqtts',
@@ -299,8 +303,10 @@ class AnycubicDriver extends PrinterDriver {
   // Publishes a command and resolves with the printer's report for it; rejects
   // if the printer reports failure.
   request(type, action, data, timeoutMs = 10000, channel = 'web') {
-    return new Promise((resolve, reject) => {
-      const key = `${type}:${action}`;
+    const key = `${type}:${action}`;
+    // Replies are matched by kind alone, so requests of one kind go one at a
+    // time: two in flight would take each other's answers.
+    const run = () => new Promise((resolve, reject) => {
       const timer = setTimeout(() => { this.pending.delete(key); reject(new Error('Printer did not respond')); }, timeoutMs);
       this.pending.set(key, (msg) => {
         clearTimeout(timer);
@@ -309,15 +315,35 @@ class AnycubicDriver extends PrinterDriver {
       });
       try { this.publish(channel, type, action, data); } catch (err) { clearTimeout(timer); this.pending.delete(key); reject(err); }
     });
+    const result = (this.lines.get(key) || Promise.resolve()).then(run, run);
+    this.lines.set(key, result.catch(() => {}));
+    return result;
+  }
+
+  // Sends a command the printer doesn't answer, then waits for its status to
+  // show it. No change in time is an error, never a silent success.
+  async command(action, done, what) {
+    this.publish('web', 'print', action, { taskid: this.taskId() });
+    await new Promise((resolve, reject) => {
+      const onUpdate = (s) => { if (done(s.status)) { clearTimeout(timer); this.off('update', onUpdate); resolve(); } };
+      const timer = setTimeout(() => {
+        this.off('update', onUpdate);
+        reject(new Error(`The printer didn’t confirm the ${what}. Check the printer.`));
+      }, this.confirmMs);
+      this.on('update', onUpdate);
+    });
   }
 
   taskId() {
     return String(this.project?.taskid ?? this.project?.task_id ?? '-1');
   }
 
-  async pause() { this.publish('web', 'print', 'pause', { taskid: this.taskId() }); }
-  async resume() { this.publish('web', 'print', 'resume', { taskid: this.taskId() }); }
-  async cancel() { this.publish('web', 'print', 'stop', { taskid: this.taskId() }); }
+  async pause() { await this.command('pause', (s) => ['pausing', 'paused'].includes(s), 'pause'); }
+  async resume() { await this.command('resume', (s) => !['pausing', 'paused'].includes(s), 'resume'); }
+  async cancel() {
+    this.starting = null; // a start being cancelled is no longer "preparing"
+    await this.command('stop', (s) => !['preparing', 'heating', 'printing', 'pausing', 'paused'].includes(s), 'cancel');
+  }
 
   // Commands per the Kobra X LAN protocol (see stribor/anycubic_kobrax):
   // axis/move {axis 1=X 2=Y 3=Z, move_type 1=+ 0=- 2=home (axis 4=XY 3=Z 5=XYZ), distance}.
