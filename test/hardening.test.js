@@ -185,3 +185,56 @@ test('Kobra X: a driver stopped while connecting stays stopped', async () => {
   assert.equal(d.retryTimer, undefined, 'no reconnect is scheduled');
   assert.equal(d.client, undefined);
 });
+
+test('a .3mf that unpacks to too much is refused, not unpacked', () => {
+  const zlib = require('node:zlib');
+  const { projectFilaments } = require('../lib/library');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zip-'));
+  try {
+    // 0.1 MB packed, 100 MB unpacked, both as stated and as it really is.
+    const make = (statedSize) => {
+      const packed = zlib.deflateRawSync(Buffer.alloc(100 * 1024 * 1024, 32));
+      const name = Buffer.from('Metadata/project_settings.config');
+      const local = Buffer.alloc(30); local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(8, 8); local.writeUInt32LE(packed.length, 18); local.writeUInt32LE(statedSize, 22); local.writeUInt16LE(name.length, 26);
+      const cd = Buffer.alloc(46); cd.writeUInt32LE(0x02014b50, 0); cd.writeUInt16LE(8, 10); cd.writeUInt32LE(packed.length, 20); cd.writeUInt32LE(statedSize, 24); cd.writeUInt16LE(name.length, 28);
+      const central = Buffer.concat([cd, name]);
+      const end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10); end.writeUInt32LE(central.length, 12); end.writeUInt32LE(30 + name.length + packed.length, 16);
+      return Buffer.concat([local, name, packed, central, end]);
+    };
+    for (const [label, stated] of [['honest size', 100 * 1024 * 1024], ['size that lies', 100]]) {
+      const file = path.join(dir, 'big.3mf');
+      fs.writeFileSync(file, make(stated));
+      const before = process.memoryUsage().rss;
+      assert.deepEqual(projectFilaments(file), [], label);
+      assert.ok(process.memoryUsage().rss - before < 80 * 1024 * 1024, `${label}: memory stayed bounded`);
+    }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the CSV export keeps spreadsheets from running cell text as formulas', () => {
+  const { JobLog } = require('../lib/jobs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'csv-'));
+  try {
+    const log = new JobLog(dir);
+    log.addManual({ file: '=1+1.gcode', printerName: '+Printer', plates: 1, quantity: 1 });
+    log.edit(log.list()[0].id, { notes: '@SUM(1+1) "quoted"' });
+    const row = log.csv().split('\r\n')[1];
+    assert.match(row, /"'=1\+1"/);
+    assert.match(row, /"'=1\+1\.gcode"/);
+    assert.match(row, /"'\+Printer"/);
+    assert.match(row, /"'@SUM\(1\+1\) ""quoted"""/);
+    assert.match(row, /"0\.00"/, 'numbers are left alone');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the printer settings file is readable by the hub only', { skip: process.platform === 'win32' && 'no Unix file modes on Windows' }, () => {
+  const { PrinterStore } = require('../lib/printers');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prn-'));
+  try {
+    const file = path.join(dir, 'printers.json');
+    fs.writeFileSync(file, '[]', { mode: 0o644 }); // as older versions left it
+    const store = new PrinterStore(dir, { mock: { meta: { fields: [] } } });
+    store.add({ type: 'mock', name: 'Sim' });
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

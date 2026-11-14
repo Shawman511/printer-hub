@@ -1,7 +1,7 @@
 {
   "name": "printer-hub",
-  "version": "0.22.2",
-  "released": "2026-11-09",
+  "version": "0.22.3",
+  "released": "2026-11-14",
   "description": "Self-hosted dashboard, control panel, slicer and job log for FlashForge Adventurer 5M and Anycubic Kobra X printers",
   "keywords": [
     "3d-printing",
