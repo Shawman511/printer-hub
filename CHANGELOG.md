@@ -3,6 +3,17 @@
 What changed in each version. The running version is shown under the name in
 the app's top bar.
 
+## 0.22.3 — 2026-11-14
+
+### Security
+- **A crafted .3mf file can't exhaust the hub's memory.** Settings and pictures
+  inside a .3mf are only unpacked up to 50 MB; a small file could claim gigabytes.
+- **The job log's CSV export can't carry spreadsheet formulas.** Text starting
+  with `=`, `+`, `-` or `@` gets a leading apostrophe.
+- **Printer check codes, API keys and passwords** are saved readable by the hub's
+  own user only, as accounts already were.
+- **GitHub Actions are pinned to exact commits,** with Dependabot keeping them current.
+
 ## 0.22.2 — 2026-11-09
 
 ### Fixed

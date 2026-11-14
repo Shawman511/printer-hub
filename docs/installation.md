@@ -69,7 +69,7 @@ file next to the compose file:
 ```bash
 HUB_PORT=3000          # port on this machine
 TZ=Europe/London       # your time zone, for the job log
-HUB_VERSION=0.22.2     # pin a release instead of "latest" (optional)
+HUB_VERSION=0.22.3     # pin a release instead of "latest" (optional)
 ```
 
 ## Option 3: one `docker run` (no slicer)
