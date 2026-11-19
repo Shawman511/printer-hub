@@ -121,9 +121,36 @@ const Setup = (() => {
       : 'The slicer isn’t running, so the profile can’t be picked now. You can set it later.';
     showType(typeSel.value, p);
     if (p) pickSlicer(p.slicer || typeOf(p.type)?.slicer || null);
+    showUpload(p);
     $('ps-dlg').showModal();
     form.elements.namedItem('name').focus();
   }
+
+  // Address and key for sending files from a slicer (saved printers only).
+  function showUpload(p) {
+    $('ps-upload').hidden = !p;
+    if (!p) return;
+    $('ps-upload-url').value = `${location.origin}/octoprint/${encodeURIComponent(p.id)}`;
+    $('ps-upload-key').value = p.uploadKey || '';
+    $('ps-upload-new').textContent = p.uploadKey ? 'Replace the key' : 'Create a key';
+    $('ps-upload-hint').textContent = p.uploadKey ? 'Replacing the key stops the old one working: update your slicer too.' : '';
+  }
+
+  $('ps-upload-new').onclick = async () => {
+    if (editing.uploadKey && !confirm('Replace the key? Slicers using the old one will stop working until you update them.')) return;
+    try {
+      const { key } = await api(`/api/printer-setup/${encodeURIComponent(editing.id)}/upload-key`, { body: {} });
+      editing.uploadKey = key;
+      showUpload(editing);
+    } catch (err) { toast(err.message, true); }
+  };
+  document.querySelectorAll('[data-copy]').forEach((b) => {
+    b.onclick = async () => {
+      const input = $(b.dataset.copy);
+      if (!input.value) return;
+      try { await navigator.clipboard.writeText(input.value); toast('Copied'); } catch { input.select(); }
+    };
+  });
 
   function values() {
     const form = $('ps-form');

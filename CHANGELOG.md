@@ -3,6 +3,18 @@
 What changed in each version. The running version is shown under the name in
 the app's top bar.
 
+## 0.23.0 — 2026-11-18
+
+### Added
+- **Send from your slicer to the hub.** Each printer gets an OctoPrint-style
+  address and key for OrcaSlicer, PrusaSlicer and similar slicers. Files are kept
+  in the library, sent to the printer and, if asked, started. A file with two or
+  more colors waits on the printer's card for its colors to be checked.
+
+### Fixed
+- **One print, one job:** a printer naming the same file with and without its
+  folder no longer splits the print into several "Unknown" jobs.
+
 ## 0.22.3 — 2026-11-14
 
 ### Security

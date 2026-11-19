@@ -804,3 +804,12 @@ dialog.video-dlg video { width: 100%; max-height: 70vh; background: #000; border
 .disk-legend strong { color: var(--text); font-weight: 600; }
 .disk-key { width: 10px; height: 10px; border-radius: 3px; box-sizing: border-box; }
 @media (max-width: 560px) { .disk-tiles { grid-template-columns: 1fr; } }
+
+/* Slicer uploads */
+.pending { margin: 4px 0 2px; padding: 10px 12px; border: 1px solid var(--accent); border-radius: var(--r); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.pending p { margin: 0 0 8px; font-size: 14px; overflow-wrap: anywhere; }
+.pending-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ps-upload { display: flex; flex-direction: column; gap: 10px; }
+.ps-copy { display: flex; gap: 6px; }
+.ps-copy input { flex: 1; min-width: 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+#ps-upload-new { align-self: flex-start; }

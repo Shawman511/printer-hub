@@ -31,7 +31,7 @@ on one page you can open from any browser or phone.
 - **Live status and cameras:** progress, layers, time left, temperatures, and what a printer is getting ready to print. Crop each camera to just the build plate
 - **Full control:** pause, resume, cancel, jog, home, temperatures, fans, speed and lights
 - **Built-in slicer:** drop in an STL, 3MF or STEP file, slice it with OrcaSlicer's profile for your printer, and print. Sliced files carry a preview picture that shows on the printer's own screen
-- **File library:** keep your G-code in one place, organized with folders and tags, and send it to any printer; files sliced for another printer are blocked
+- **File library:** keep your G-code in one place, organized with folders and tags, sent from your slicer or uploaded, and send it to any printer; files sliced for another printer are blocked
 - **Filament tracking:** how much is left on each roll, from what each print used
 - **Timelapses:** every print recorded from the camera as a short video, cropped to the build plate. Klipper and OctoPrint printers' own timelapses show up too
 - **Job log:** every print recorded automatically, which printer made it, totals per item and CSV export
