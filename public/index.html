@@ -278,6 +278,13 @@
           </div>
         </div>
         <p class="nojob">No active job</p>
+        <div class="pending" hidden>
+          <p><strong class="pending-file"></strong> came from your slicer. Check its colors before it prints.</p>
+          <div class="pending-actions">
+            <button class="btn primary act-pending" type="button">Check colors and print…</button>
+            <button class="btn ghost act-dismiss" type="button">Dismiss</button>
+          </div>
+        </div>
 
         <div class="temps"></div>
         <p class="err" hidden></p>
@@ -712,6 +719,18 @@
           <label>OrcaSlicer printer <select id="ps-machine" disabled></select></label>
         </div>
         <p class="dlg-hint" id="ps-slicer-hint">The OrcaSlicer profile used when you slice models for this printer.</p>
+      </fieldset>
+      <fieldset class="ps-upload" id="ps-upload" hidden>
+        <legend>Send from your slicer</legend>
+        <p class="dlg-hint">In OrcaSlicer or PrusaSlicer, add a physical printer with the host type <strong>OctoPrint</strong> and these details. Files you send are kept in the library, then go to this printer.</p>
+        <label>Hostname, IP or URL
+          <span class="ps-copy"><input id="ps-upload-url" readonly><button class="btn small" type="button" data-copy="ps-upload-url">Copy</button></span>
+        </label>
+        <label>API key
+          <span class="ps-copy"><input id="ps-upload-key" readonly placeholder="No key yet"><button class="btn small" type="button" data-copy="ps-upload-key">Copy</button></span>
+        </label>
+        <button class="btn small" type="button" id="ps-upload-new">Create a key</button>
+        <p class="dlg-hint" id="ps-upload-hint"></p>
       </fieldset>
       <details class="ps-advanced">
         <summary>Advanced</summary>

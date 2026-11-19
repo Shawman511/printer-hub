@@ -3,6 +3,29 @@
 What changed in each version. The running version is shown under the name in
 the app's top bar.
 
+## 0.23.0 — 2026-11-18
+
+### Added
+- **Send from your slicer to the hub.** Each printer gets an OctoPrint-style
+  address and key for OrcaSlicer, PrusaSlicer and similar slicers. Files are kept
+  in the library, sent to the printer and, if asked, started. A file with two or
+  more colors waits on the printer's card for its colors to be checked.
+
+### Fixed
+- **One print, one job:** a printer naming the same file with and without its
+  folder no longer splits the print into several "Unknown" jobs.
+
+## 0.22.3 — 2026-11-14
+
+### Security
+- **A crafted .3mf file can't exhaust the hub's memory.** Settings and pictures
+  inside a .3mf are only unpacked up to 50 MB; a small file could claim gigabytes.
+- **The job log's CSV export can't carry spreadsheet formulas.** Text starting
+  with `=`, `+`, `-` or `@` gets a leading apostrophe.
+- **Printer check codes, API keys and passwords** are saved readable by the hub's
+  own user only, as accounts already were.
+- **GitHub Actions are pinned to exact commits,** with Dependabot keeping them current.
+
 ## 0.22.2 — 2026-11-09
 
 ### Fixed

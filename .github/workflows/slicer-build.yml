@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Converter stage
         run: docker build --progress=plain --target step2stl -t step2stl-test slicer
       - name: Full slicer image (runs the slice self-test)

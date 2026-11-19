@@ -176,6 +176,8 @@ function createCard(state) {
   q('.act-light').onclick = run(q('.act-light'), 'light', () => ({ on: !card.state.light }));
   q('.act-cancel').onclick = () => confirmCancel(card, run(q('.act-cancel'), 'cancel'));
   q('.act-print').onclick = () => Files.openPrinterFiles(card.state.id);
+  q('.act-pending').onclick = () => Files.openPrint(card.state.id, card.state.pendingStart?.file);
+  q('.act-dismiss').onclick = run(q('.act-dismiss'), 'dismiss');
   q('.cam-full').onclick = () => q('.cam').requestFullscreen?.();
 
   q('.act-controls').href = `#control/${id}`;
@@ -197,6 +199,11 @@ function render(state) {
 
   el.dataset.s = s;
   el.classList.toggle('offline', !state.online);
+  // A print from the slicer that waits for its colors to be checked.
+  const pending = state.pendingStart;
+  q('.pending').hidden = !pending;
+  if (pending) q('.pending-file').textContent = pending.file;
+  q('.act-pending').disabled = !(state.online && ['idle', 'completed'].includes(s));
   q('.name').textContent = state.name;
   q('.model').textContent = [state.model, state.host].filter(Boolean).join(' · ') || state.type;
   q('.pill').textContent = STATUS_LABEL[s] || s;

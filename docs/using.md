@@ -73,6 +73,24 @@ MQTT `axis/move`, `axis/turnOff`, `tempature/set`, `fan/setSpeed` and
 
 ## Files: library, uploads and starting prints
 
+**Sending from your slicer** keeps a copy of everything you print. A print sent
+straight from a slicer to the printer never reaches the hub, and the Kobra X and
+AD5M can't hand files back, so the hub can't copy it later.
+
+1. In **Settings → Printers**, edit the printer and click **Create a key** under
+   **Send from your slicer**.
+2. In OrcaSlicer or PrusaSlicer, add a physical printer (the Wi-Fi icon next to
+   the printer) with the host type **OctoPrint**, the hub's address and the key
+   from that screen. **Test** should say the connection works.
+3. **Send** keeps the file in the library and puts it on the printer. **Send and
+   print** also starts it, using the printer's default options. A file with two
+   or more colors doesn't start by itself: the printer's card shows **Check
+   colors and print…** until you do.
+
+If the printer is busy, the file is still kept and the slicer says it couldn't
+start. Replacing a key stops the old one working.
+
+
 - **Library tab:** drop `.gcode`, `.gx`, `.3mf` or `.bgcode` files (up to 512 MB)
   to store them on the hub, in `data/library/` (the `printer-hub-data` volume in
   Docker). The hub reads the slicer header to show which printer and material

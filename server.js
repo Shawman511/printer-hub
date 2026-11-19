@@ -11,11 +11,13 @@ const { PrusaLinkDriver } = require('./drivers/prusalink');
 const { PrinterStore } = require('./lib/printers');
 const { Timelapses } = require('./lib/timelapse');
 const { storageReport } = require('./lib/storage');
-const { JobLog, planFilamentUse } = require('./lib/jobs');
+const { JobLog, planFilamentUse, sameFile } = require('./lib/jobs');
+const { readUploadForm } = require('./lib/upload-form');
 const { Library, folderPath, projectFilaments } = require('./lib/library');
 const { checkFile } = require('./lib/compat');
 const { SpoolStore } = require('./lib/spools');
 const { AuthStore, allowed } = require('./lib/auth');
+const crypto = require('node:crypto');
 const { version: HUB_VERSION, released: HUB_RELEASED } = require('./package.json');
 
 // Printer types offered in Settings → Printers, in that order.
@@ -65,14 +67,20 @@ const clients = new Map(); // response -> session id
 // Finished jobs cleared from the hub (Clear): printer id -> file. The printer
 // shows as ready until it reports something else (a new job, or idle itself).
 const cleared = new Map();
+// Prints a slicer asked for that wait for someone to check the colors:
+// printer id -> { file, at }. Shown on the printer card until started or dismissed.
+const pendingStarts = new Map();
 function view(state) {
+  const pending = pendingStarts.get(state.id);
+  if (pending && (Date.now() - pending.at > 24 * 3600 * 1000 || (state.job?.file && sameFile(state.job.file, pending.file)))) pendingStarts.delete(state.id);
+  const out = pendingStarts.has(state.id) ? { ...state, pendingStart: pendingStarts.get(state.id) } : state;
   const file = cleared.get(state.id);
-  if (file === undefined) return state;
+  if (file === undefined) return out;
   if (state.status !== 'completed' || (state.job?.file || '') !== file) {
     cleared.delete(state.id);
-    return state;
+    return out;
   }
-  return { ...state, status: 'idle', job: null };
+  return { ...out, status: 'idle', job: null };
 }
 const snapshot = () => [...printers.values()].map((p) => view(p.state));
 const broadcast = (event, data) => {
@@ -155,7 +163,7 @@ for (const cfg of printerStore.all()) attach(cfg);
 // True when two printer configs differ only in hub-side settings (camera crop,
 // timelapses) that don't need the printer reconnected.
 const onlyCropChanged = (a, b) => {
-  const strip = ({ cameraCrop, timelapse, timelapseEvery, timelapseLength, ...rest }) => JSON.stringify(rest);
+  const strip = ({ cameraCrop, timelapse, timelapseEvery, timelapseLength, uploadKey, ...rest }) => JSON.stringify(rest);
   return !!a && !!b && strip(a) === strip(b);
 };
 
@@ -203,7 +211,7 @@ async function planFilament(job, phase) {
   const multi = !!p.state.slots?.length;
   let colors = null;
   const ls = p.hubStart;
-  if (ls && ls.file === job.file && Date.now() - ls.at < 30 * 60 * 1000 && ls.perSlot?.length) colors = ls.perSlot;
+  if (ls && sameFile(ls.file, job.file) && Date.now() - ls.at < 30 * 60 * 1000 && ls.perSlot?.length) colors = ls.perSlot;
   if (!colors && multi) {
     try {
       colors = withLibraryGrams(job.file, (await p.printOptions(job.file)).colors);
@@ -505,6 +513,7 @@ const ACTIONS = {
     broadcast('printer', view(p.state));
   },
   light: (p, body) => p.setLight(!!body.on),
+  dismiss: (p) => { pendingStarts.delete(p.state.id); broadcast('printer', view(p.state)); },
   control: (p, body) => p.control(body),
   slots: (p) => (p.refreshSlots ? p.refreshSlots() : p.state.slots),
   print: (p, body) => {
@@ -518,6 +527,7 @@ const ACTIONS = {
       const opts = await p.printOptions(String(body.file)).catch(() => null);
       const perSlot = withLibraryGrams(String(body.file), opts?.colors)?.map((c) => ({ slot: body.mapping?.[c.index] != null ? Number(body.mapping[c.index]) : c.slot, grams: c.grams || 0 })) ?? null;
       p.hubStart = { file: String(body.file), at: Date.now(), perSlot };
+      if (pendingStarts.get(p.state.id)?.file === String(body.file)) pendingStarts.delete(p.state.id);
       return p.startPrint(String(body.file), { mapping: body.mapping, autoLevel: body.autoLevel });
     })();
   },
@@ -550,6 +560,8 @@ async function handle(req, res) {
     });
   }
 
+  // Slicers authenticate with the printer's key, not a sign-in, and send no Origin.
+  if (parts[0] === 'octoprint') return slicerUpload(req, res, parts);
   if (parts[0] !== 'api') return json(res, 404, { error: 'Not found' });
   if (url.pathname === '/api/health') return json(res, 200, { ok: true });
 
@@ -645,6 +657,10 @@ async function handle(req, res) {
         const body = await readBody(req);
         const prev = body.id ? printerStore.get(body.id) : null;
         return json(res, 200, await testPrinter(printerStore.clean(body, prev && prev.type === body.type ? prev : null)));
+      }
+      if (parts[2] && parts[3] === 'upload-key' && req.method === 'POST') {
+        const cfg = printerStore.setUploadKey(parts[2], crypto.randomBytes(24).toString('base64url'));
+        return json(res, 200, { key: cfg.uploadKey });
       }
       if (!parts[2] && req.method === 'GET') return json(res, 200, printerStore.list());
       if (!parts[2] && req.method === 'POST') return json(res, 200, printerStore.view(printerStore.add(await readBody(req))));
@@ -825,6 +841,78 @@ const server = http.createServer((req, res) => {
     else res.destroy();
   });
 });
+
+// ---- Uploads from slicers ------------------------------------------------------
+// /octoprint/<printer id>/api/version and /api/files/local: the part of
+// OctoPrint's API that OrcaSlicer, PrusaSlicer and similar slicers use to send a
+// file. The file is kept in the library, sent to the printer and, if the slicer
+// asked, started. Each printer has its own key (Settings → Printers).
+
+const keyMatches = (given, key) => {
+  const a = Buffer.from(String(given || ''));
+  const b = Buffer.from(String(key || ''));
+  return !!key && a.length === b.length && crypto.timingSafeEqual(a, b);
+};
+
+async function slicerUpload(req, res, parts) {
+  const printer = printers.get(parts[1]);
+  const cfg = printer && printerStore.get(parts[1]);
+  // Unknown printer and wrong key look alike, so a key can't be guessed per printer.
+  if (!keyMatches(req.headers['x-api-key'], cfg?.uploadKey)) return json(res, 403, { error: 'Invalid API key' });
+  const route = parts.slice(2).join('/');
+  if (route === 'api/version' && req.method === 'GET') {
+    return json(res, 200, { api: '0.1', server: '1.10.0', text: `OctoPrint 1.10.0 (Printer Hub ${HUB_VERSION})` });
+  }
+  if (route !== 'api/files/local' || req.method !== 'POST') return json(res, 404, { error: 'Not found' });
+
+  let form;
+  try { form = await readUploadForm(req, path.join(dataDir, 'tmp')); } catch (err) { return json(res, 400, { error: err.message }); }
+  let item;
+  try {
+    if (!form.file) return json(res, 400, { error: 'No file in the upload' });
+    const stream = fs.createReadStream(form.file.path, { start: form.file.start, end: Math.max(form.file.start, form.file.end - 1) });
+    item = await library.addFromStream(form.file.name, stream, {}, { newVersion: true });
+  } finally {
+    fs.rmSync(form.file?.path || '', { force: true });
+  }
+  const done = (extra = {}) => json(res, 201, {
+    done: true,
+    files: { local: { name: item.name, origin: 'local', refs: { resource: '', download: '' } } },
+    ...extra,
+  });
+  const wantsPrint = String(form.fields.print).toLowerCase() === 'true';
+  if (item.kind === 'model') return done();
+  // Never start over a print in progress; the file is kept for later either way.
+  const ready = ['idle', 'completed'].includes(view(printer.state).status) && printer.state.online;
+  if (wantsPrint && !ready) {
+    return json(res, 409, { error: `Saved in Printer Hub's library, but ${printer.state.name} is ${printer.state.online ? printer.state.status : 'offline'}. Start it from the hub when it's free.` });
+  }
+  try {
+    await sendToPrinter(item, printer);
+  } catch (err) {
+    // Kept in the library either way; a print can't start without the file on the printer.
+    console.warn(`Slicer upload of ${item.name}: kept in the library, not sent to ${printer.state.name}: ${err.message}`);
+    if (wantsPrint) return json(res, 409, { error: `Saved in Printer Hub's library, but ${printer.state.name} didn't take it: ${err.message}` });
+    return done();
+  }
+  if (!wantsPrint) return done();
+
+  // A multicolor print waits for someone to check the colors and slots.
+  const opts = await printer.printOptions(item.name).catch(() => null);
+  if ((opts?.colors?.length || 0) > 1) {
+    pendingStarts.set(printer.state.id, { file: item.name, at: Date.now(), colors: opts.colors.length });
+    broadcast('printer', view(printer.state));
+    console.log(`Slicer upload: ${item.name} is waiting for its colors to be checked on ${printer.state.name}`);
+    return done();
+  }
+  const defaults = Object.fromEntries((opts?.options || []).map((o) => [o.key, !!o.default]));
+  try {
+    await ACTIONS.print(printer, { file: item.name, mapping: {}, ...defaults });
+  } catch (err) {
+    return json(res, 409, { error: `Saved in Printer Hub's library and sent to ${printer.state.name}, but it didn't start: ${err.message}` });
+  }
+  return done();
+}
 
 // HUB_RESET_PASSWORD=<username> sets a new random password for that user at
 // startup and prints it to the log (for a forgotten admin password). Remove the
